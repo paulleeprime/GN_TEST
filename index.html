@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>POG · Property Owner’s Guide</title>
+  <meta name="description" content="건물주를 위한 부동산 사용설명서. 주소 기반 건물정보와 강남 3구 실거래 비교 MVP.">
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+<div id="pog-app">
+  <header>
+    <a href="#" class="logo" aria-label="POG 홈"><span class="mark">P</span><span>POG<small>Property Owner’s Guide</small></span></a>
+    <div class="header-badges"><span class="badge">저장 실거래 내장</span><span id="api-status" class="badge api">API 확인 중</span></div>
+  </header>
+
+  <main>
+    <section class="intro">
+      <p class="eyebrow">PROPERTY OWNER’S GUIDANCE</p>
+      <h1>주소 하나로,<br>내 건물의 비교 기준을 확인하세요.</h1>
+      <p>건물정보 자동조회 → 유사 거래 선별 → 평당가 흐름·분포 → 주변 공식 변화 기록까지 한 화면에서 봅니다.</p>
+    </section>
+
+    <form id="search-form" class="card search-card">
+      <div class="inputs primary-inputs">
+        <label>지역
+          <select id="district"><option>강남구</option><option>서초구</option><option>송파구</option></select>
+        </label>
+        <label class="wide">지번주소
+          <input id="address" placeholder="예: 역삼동 000-00" required autocomplete="off">
+        </label>
+        <button id="search-btn" type="submit">건물 분석하기 ↗</button>
+      </div>
+      <div class="inputs secondary">
+        <label>거래 유형
+          <select id="kind"><option value="일반">일반 · 건물 통째</option><option value="집합">집합 · 호실 단위</option><option value="">전체</option></select>
+        </label>
+        <label>기간
+          <select id="period"><option value="0">저장된 전체 기간</option><option value="365">최근 1년 · 데이터 기준</option><option value="730">최근 2년 · 데이터 기준</option></select>
+        </label>
+        <label>현재 용도지역
+          <select id="zone"><option value="">모름 / 미입력</option><option value="exclusive">전용주거지역</option><option value="other">그 외</option></select>
+        </label>
+      </div>
+      <div class="examples">빠른 체험
+        <button type="button" data-example="역삼동 000-00" data-gu="강남구">역삼동</button>
+        <button type="button" data-example="서초동 000-00" data-gu="서초구">서초동</button>
+        <button type="button" data-example="잠실동 000-00" data-gu="송파구">잠실동</button>
+      </div>
+      <p class="hint">체험 지번 <strong>000-00</strong>은 실제 건물이 아닌 가상 예시입니다. 실제 주소는 API 프록시가 연결되면 건축물대장을 자동조회하고, 미연결 시 저장 실거래의 정확 지번 면적을 우선 사용합니다.</p>
+    </form>
+
+    <p id="message" class="status-line" role="status" aria-live="polite">데이터 준비 중…</p>
+
+    <section id="results" hidden>
+      <section class="result-heading">
+        <div><p class="eyebrow">PROPERTY SNAPSHOT</p><h2 id="result-title"></h2><p id="resolved-address" class="subtle"></p></div>
+        <span id="basis" class="badge"></span>
+      </section>
+
+      <section class="subject-grid">
+        <article class="subject-card hero-metric"><span>대지면적</span><strong id="subject-land">—</strong><small id="subject-land-py">—</small></article>
+        <article class="subject-card hero-metric"><span>연면적</span><strong id="subject-building">—</strong><small id="subject-building-py">—</small></article>
+        <article class="subject-card"><span>자동조회 출처</span><strong id="subject-source">—</strong><small id="subject-extra">—</small></article>
+      </section>
+
+      <details id="manual-box" class="manual-box">
+        <summary>면적이 다르거나 자동조회가 안 되면 직접 수정</summary>
+        <div class="inputs manual-inputs">
+          <label>대지면적 (㎡)<input id="land" type="number" min="0" step="any" placeholder="직접 입력"></label>
+          <label>연면적 (㎡)<input id="building" type="number" min="0" step="any" placeholder="직접 입력"></label>
+          <button id="recalc" type="button" class="outline">입력값으로 다시 계산</button>
+        </div>
+      </details>
+
+      <div id="metrics" class="metrics"></div>
+      <p id="method" class="hint method"></p>
+
+      <section class="chart-grid">
+        <article class="card chart-card"><div class="section-title"><div><p class="eyebrow">PRICE TREND</p><h2>평당가 흐름</h2></div><span id="trend-label" class="mini-badge"></span></div><div id="trend-chart" class="chart"></div><p id="trend-note" class="hint"></p></article>
+        <article class="card chart-card"><div class="section-title"><div><p class="eyebrow">PRICE DISTRIBUTION</p><h2>비교군 가격 분포</h2></div><span id="dist-label" class="mini-badge"></span></div><div id="dist-chart" class="chart"></div><p id="dist-note" class="hint"></p></article>
+      </section>
+
+      <section class="card">
+        <div class="section-title"><div><p class="eyebrow">TOP COMPARABLES</p><h2>내 건물과 가까운 비교사례</h2></div><span id="comp-summary" class="mini-badge"></span></div>
+        <div id="comp-cards" class="comp-cards"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title"><div><p class="eyebrow">TRANSACTIONS</p><h2>조건에 맞는 거래</h2></div><span id="count" class="mini-badge"></span></div>
+        <div class="table-scroll"><table><thead><tr><th>계약일</th><th>주소 · 공개 지번</th><th>거래금액</th><th>대지 ㎡</th><th>건물 ㎡</th><th>대지평당</th><th>건물평당</th><th>용도</th></tr></thead><tbody id="rows"></tbody></table></div>
+        <button id="more" type="button" class="outline">거래 더 보기</button>
+      </section>
+
+      <section class="card"><h2>주변 공식 변화 기록</h2><p class="hint">수록된 공식자료 기록을 주소 조건과 연결합니다. 자동 갱신된 결정고시 데이터가 아니라, 자료 내 마지막 검증 시점 기준입니다.</p><div id="events"></div></section>
+
+      <div class="notice"><strong>주의:</strong> 비교값은 감정가·매도가가 아닙니다. 지번이 가려진 거래는 같은 건물/인접 필지로 판단하지 않고, 같은 동·유사 규모의 비교군으로만 사용합니다.</div>
+    </section>
+
+    <section id="empty" class="card empty"><h2>가격을 넘어, 판단의 근거까지.</h2><p>주소를 입력하면 저장 실거래와 건물정보를 결합해<br>유사 거래·가격 흐름·공식 변화 기록을 보여줍니다.</p></section>
+  </main>
+
+  <footer><strong>POG</strong><p id="data-info"></p><p>국토교통부 상업·업무용 실거래 저장 데이터 기반 · 건축물대장 API는 서버 프록시 연결 시 자동 사용 · 브라우저에 인증키를 저장하지 않음</p></footer>
+</div>
+</body>
+</html>
